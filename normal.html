@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Descending Numbers Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 30px;
+    }
+    .top-links { margin-bottom: 10px; }
+    .top-links a { text-decoration:none; color:#007bff; }
+    ul {
+      list-style: none;
+      padding: 0;
+      max-width: 200px;
+      margin: 20px auto;
+      border: 2px solid #333;
+      border-radius: 8px;
+    }
+    li {
+      border-bottom: 1px solid #ccc;
+      padding: 12px;
+      height: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f9f9f9;
+    }
+    li:last-child { border-bottom: none; }
+    .box {
+      padding: 10px 20px;
+      background: #4caf50;
+      color: white;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: grab;
+      margin: 10px auto;
+      width: fit-content;
+    }
+    .highlight {
+      background: #d1ffd1 !important;
+    }
+    .disabled {
+      background: #ccc !important;
+      cursor: not-allowed;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 15px;
+      font-size: 16px;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    #message.win { color: green; }
+    #message.lose { color: red; }
+    #resetBtn {
+      display: none;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-links"><a href="index.html">&larr; Back to menu</a></div>
+  <h1>Descending Numbers Game</h1>
+  <ul id="list">
+    <li data-index="0"></li>
+    <li data-index="1"></li>
+    <li data-index="2"></li>
+    <li data-index="3"></li>
+    <li data-index="4"></li>
+  </ul>
+  <div id="generatedContainer"></div>
+  <button id="generateBtn">Generate</button>
+
+  <div id="message"></div>
+  <button id="resetBtn">Reset Game</button>
+
+  <script>
+    const generateBtn = document.getElementById("generateBtn");
+    const generatedContainer = document.getElementById("generatedContainer");
+    const listItems = document.querySelectorAll("#list li");
+    const message = document.getElementById("message");
+    const resetBtn = document.getElementById("resetBtn");
+
+    let currentBox = null;
+    let prevNumber = null;
+    let locked = false;
+    let gameOver = false;
+	let usedNumbers = [];
+
+    function resetGame() {
+      listItems.forEach(li => li.textContent = "");
+      prevNumber = null;
+      generatedContainer.innerHTML = "";
+      currentBox = null;
+      locked = false;
+      gameOver = false;
+      message.textContent = "";
+      message.className = "";
+      resetBtn.style.display = "none";
+	  usedNumbers = [];
+    }
+
+    function isValidPlacement(index, number) {
+      for (let i = 0; i < index; i++) {
+        if (listItems[i].textContent && Number(listItems[i].textContent) <= number) {
+          return false;
+        }
+      }
+      for (let j = index + 1; j < listItems.length; j++) {
+        if (listItems[j].textContent && Number(listItems[j].textContent) >= number) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function availableSpots(number) {
+      return [...listItems].filter((li, idx) => 
+        !li.textContent && isValidPlacement(idx, number)
+      );
+    }
+
+    function endGame(status, reason="") {
+      gameOver = true;
+      setTimeout(() => {
+        if (status === "win") {
+          message.textContent = "You won! 🎉";
+          message.className = "win";
+        } else {
+          message.textContent = `You lost! ${reason}`;
+          message.className = "lose";
+        }
+        resetBtn.style.display = "inline-block";
+      }, 1000);
+    }
+
+    function generateNumber() {
+      if (gameOver) return;
+      if (currentBox && !locked) {
+        message.textContent = "Place the current number before generating a new one!";
+        message.className = "lose";
+        return;
+      }
+      let num;
+      do {
+        num = Math.floor(Math.random() * 100) + 1;
+      } while (usedNumbers.includes(num));
+	
+      prevNumber = num;
+	  usedNumbers.push(num);
+	  
+      generatedContainer.innerHTML = "";
+      currentBox = document.createElement("div");
+      currentBox.className = "box";
+      currentBox.textContent = num;
+      currentBox.setAttribute("draggable", "true");
+      generatedContainer.appendChild(currentBox);
+      locked = false;
+
+      let spots = availableSpots(num);
+      if (spots.length === 0) {
+        endGame("lose", `No valid slots available for number ${num}.`);
+      }
+    }
+
+    document.addEventListener("dragstart", e => {
+      if (e.target.classList.contains("box") && !locked && !gameOver) {
+        e.dataTransfer.setData("text/plain", e.target.textContent);
+      }
+    });
+
+    listItems.forEach((li, index) => {
+      li.addEventListener("dragover", e => {
+        e.preventDefault();
+        if (!li.textContent && currentBox && !gameOver) {
+          if (isValidPlacement(index, Number(currentBox.textContent))) {
+            li.classList.add("highlight");
+          }
+        }
+      });
+
+      li.addEventListener("dragleave", () => {
+        li.classList.remove("highlight");
+      });
+
+      li.addEventListener("drop", e => {
+        e.preventDefault();
+        li.classList.remove("highlight");
+        if (!li.textContent && currentBox && !gameOver) {
+          const num = Number(currentBox.textContent);
+          if (isValidPlacement(index, num)) {
+            li.textContent = num;
+            locked = true;
+            currentBox.classList.add("disabled");
+            currentBox.removeAttribute("draggable");
+          }
+        }
+        if ([...listItems].every(li => li.textContent)) {
+          endGame("win");
+        }
+      });
+    });
+
+    generateBtn.addEventListener("click", generateNumber);
+    resetBtn.addEventListener("click", resetGame);
+  </script>
+</body>
+</html>
